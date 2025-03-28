@@ -1,0 +1,7 @@
+<?php
+
+function facet_bot_blocker_element_info_alter($info) {
+  if (isset($info['search'])) {
+    //$info['search']['#attached']['library'][] = 'facet_bot_blocker/facet_bot_blocker';
+  }
+}

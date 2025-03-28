@@ -1,0 +1,11 @@
+facet_bot_blocker.settings:
+  title: Facet Bot Blocker Settings
+  description: Configure the Facet Bot Blocker module.
+  parent: system.admin_config_system
+  route_name: facet_bot_blocker.settings_form
+
+facet_bot_blocker.reports:
+  title: Facet Bot Blocker
+  description: View statistics for all Facet Bot Blocker.
+  parent: system.admin_reports
+  route_name: facet_bot_blocker.dashboard

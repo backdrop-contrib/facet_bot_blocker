@@ -1,0 +1,15 @@
+facet_bot_blocker.dashboard:
+  path: '/admin/reports/facet-bot-blocker'
+  defaults:
+    _controller: '\Drupal\facet_bot_blocker\Controller\FacetBotBlockerDashboardController::dashboard'
+    _title: 'Facet Bot Blocker Dashboard'
+  requirements:
+    _permission: 'access administration pages'
+
+facet_bot_blocker.settings_form:
+  path: '/admin/config/system/facet-bot-blocker'
+  defaults:
+    _form: '\Drupal\facet_bot_blocker\Form\FacetBotBlockerSettingsForm'
+    _title: 'Facet Bot Blocker Settings'
+  requirements:
+    _permission: 'administer site configuration'

@@ -1,0 +1,5 @@
+name: 'Facet Bot Blocker'
+type: module
+description: 'Block requests for excessive faceted search URLs.'
+package: 'Performance and scalability'
+core_version_requirement: ^10 || ^11
