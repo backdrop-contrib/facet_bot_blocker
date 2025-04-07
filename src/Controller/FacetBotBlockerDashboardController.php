@@ -27,15 +27,15 @@ class FacetBotBlockerDashboardController extends ControllerBase {
   /**
    * Constructs a new FacetBotBlockerDashboardController.
    */
-  public function __construct(CacheBackendInterface $cache_backend, TimeInterface $time) {
-    $this->cacheBackend = $cache_backend;
+  public function __construct(CacheBackendInterface $cacheBackend, TimeInterface $time) {
+    $this->cacheBackend = $cacheBackend;
     $this->time = $time;
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): self {
     return new static(
       $container->get('cache.default'),
       $container->get('datetime.time')
@@ -45,7 +45,7 @@ class FacetBotBlockerDashboardController extends ControllerBase {
   /**
    * Build a dashboard page showing facet blocking stats.
    */
-  public function dashboard() {
+  public function dashboard(): array {
     // 1) Get the configured facet limit.
     //    Typically you'd store config in Drupal's config system, but
     //    if you are using Settings, retrieve it like this:
