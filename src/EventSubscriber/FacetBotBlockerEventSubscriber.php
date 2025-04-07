@@ -79,6 +79,11 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       return;
     }
 
+    // If the user is logged in, and has a role with the "bypass facet bot blocker" permission.
+    if (\Drupal::currentUser()->hasPermission('bypass facet bot blocker')) {
+      return;
+    }
+
     // Determine if we should use cache for storing config values. We'll only do so if memcache or redis is installed.
     $use_cache = ($this->moduleHandler->moduleExists('memcache') || $this->moduleHandler->moduleExists('redis'));
 
@@ -138,7 +143,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       $is_blocked = TRUE;
     }
 
-    // 4) If blocked, build and set a response. Otherwise, increment "allowed" counter if there's a facet param.
+    // If blocked, build and set a response. Otherwise, increment "allowed" counter if there's a facet param.
     if ($is_blocked) {
         $status_code = $return_gone ? Response::HTTP_GONE : Response::HTTP_FORBIDDEN;
         $formattableMarkup = new FormattableMarkup($blocked_message, ['@path' => $request->getPathInfo()]);
