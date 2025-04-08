@@ -3,3 +3,4 @@ type: module
 description: 'Block requests for excessive faceted search URLs.'
 package: 'Performance and scalability'
 core_version_requirement: ^10 || ^11
+configure: facet_bot_blocker.settings_form
