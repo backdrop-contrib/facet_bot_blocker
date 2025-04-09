@@ -1,6 +1,6 @@
 administer facet bot blocker:
   title: 'Administer Facet Bot Blocker settings'
-  description: 'Allow users to modify the settigns of the Facet Bot Blocker module.'
+  description: 'Allow users to modify the settings of the Facet Bot Blocker module.'
   restrict access: true
 
 access facet bot blocker dashboard:
