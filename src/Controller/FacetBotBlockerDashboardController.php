@@ -9,7 +9,8 @@ use Drupal\Core\Site\Settings;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- *
+ * The Facet Bot Blocker Dashboard controller.
+ * Assembles a report page showing metrics of the Facet bot blocker module.
  */
 class FacetBotBlockerDashboardController extends ControllerBase {
 
@@ -49,22 +50,12 @@ class FacetBotBlockerDashboardController extends ControllerBase {
    * Build a dashboard page showing facet blocking stats.
    */
   public function dashboard(): array {
-    // 1) Get the configured facet limit.
-    //    Typically you'd store config in Drupal's config system, but
-    //    if you are using Settings, retrieve it like this:
+    // Get the configured facet limit.
+    // Typically you'd store config in Drupal's config system, but
+    // if you are using Settings, retrieve it like this:
     $limit = Settings::get('facets_bot_blocker_limit', '1');
 
-    // 2) Retrieve counters and data from cache.
-    //    For example, your event subscriber might do something like:
-    //    \Drupal::cache()->set('facet_bot_blocker.blocked_requests', $blockedCount);
-    //    \Drupal::cache()->set('facet_bot_blocker.allowed_requests', $allowedCount);
-    //    \Drupal::cache()->set('facet_bot_blocker.last_blocked_request', [
-    //      'ip' => '...',
-    //      'path' => '...',
-    //      'user_agent' => '...'
-    //    ]);
-    //    \Drupal::cache()->set('facet_bot_blocker.metrics_start_time', time());
-    //    Adjust keys to suit your actual design.
+    // Retrieve counters and data from cache.
     $blocked_cache = $this->cacheBackend->get('facet_bot_blocker.blocked_requests');
     $allowed_cache = $this->cacheBackend->get('facet_bot_blocker.allowed_requests');
     $last_blocked_cache = $this->cacheBackend->get('facet_bot_blocker.last_blocked_request');
@@ -76,12 +67,12 @@ class FacetBotBlockerDashboardController extends ControllerBase {
     $last_blocked = $last_blocked_cache ? $last_blocked_cache->data : [];
     $metrics_start_time = $start_time_cache ? $start_time_cache->data : $this->time->getRequestTime();
 
-    // 3) Compute "time since metrics started."
+    // Compute "time since metrics started."
     $time_since_start = $this->time->getRequestTime() - $metrics_start_time;
     // Optionally convert seconds to something more readable, e.g. hours:
     $time_since_string = round($time_since_start / 3600, 2) . ' hours';
 
-    // 4) Prepare a small table. You can theme this however you like.
+    // Prepare a small table. You can theme this however you like.
     $rows = [];
     $rows[] = [
       $this->t('Current facet limit'),
@@ -130,7 +121,7 @@ class FacetBotBlockerDashboardController extends ControllerBase {
       // Optionally, you could add your own #attributes here for styling, etc.
     ];
 
-    // 5) Return the render array.
+    // Return the render array.
     return $build;
   }
 

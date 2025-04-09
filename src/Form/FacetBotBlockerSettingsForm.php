@@ -116,30 +116,28 @@ class FacetBotBlockerSettingsForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $formState) {
-    // 1) Save values to config.
+    // Save values to config.
     $this->configFactory->getEditable('facet_bot_blocker.settings')
       ->set('facets_bot_blocker_limit', $formState->getValue('facets_bot_blocker_limit'))
       ->set('facet_bot_blocker_return_gone', $formState->getValue('facet_bot_blocker_return_gone'))
       ->set('facet_bot_blocker_html', $formState->getValue('facet_bot_blocker_html'))
       ->save();
 
-    // 2) If memcache or redis is installed, store limit in cache to avoid DB reads.
+    // If memcache or redis is installed, store limit in cache
+    // to avoid excessive DB reads.
     $use_cache = (
       $this->moduleHandler->moduleExists('memcache') ||
       $this->moduleHandler->moduleExists('redis')
     );
     if ($use_cache) {
       $limit = $formState->getValue('facets_bot_blocker_limit');
-      // Example: store in a known cache key.
-      // If your event subscriber references `\Drupal::cache()->get('facet_bot_blocker.limit')`,
-      // you'd do the same here:
       $this->cacheBackend->set('facet_bot_blocker.limit', $limit);
     }
 
-    // 3) Show a status message.
+    // Show a status message.
     $this->messenger()->addStatus($this->t('Facet Bot Blocker configuration saved.'));
 
-    // 4) Redirect to the same form.
+    // Redirect to the same form.
     $formState->setRedirect('<current>');
   }
 

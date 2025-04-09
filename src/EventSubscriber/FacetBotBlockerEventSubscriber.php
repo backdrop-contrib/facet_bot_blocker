@@ -77,12 +77,14 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       return;
     }
 
-    // If the user is logged in, and has a role with the "bypass facet bot blocker" permission.
+    // If the user is logged in, and has a role with the "bypass facet bot
+    // blocker" permission.
     if (\Drupal::currentUser()->hasPermission('bypass facet bot blocker')) {
       return;
     }
 
-    // Determine if we should use cache for storing config values. We'll only do so if memcache or redis is installed.
+    // Determine if we should use cache for storing config values. We'll only
+    // do so if memcache or redis is installed.
     $use_cache = ($this->moduleHandler->moduleExists('memcache') || $this->moduleHandler->moduleExists('redis'));
 
     // Retrieve config from cache or config system.
@@ -118,7 +120,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       }
     }
 
-    // -- Blocked Message --
+    // Blocked Message
     $message_cache = $this->cacheBackend->get('facet_bot_blocker.html');
     if ($use_cache && $message_cache) {
       $blocked_message = $message_cache->data;
@@ -141,7 +143,8 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       $is_blocked = TRUE;
     }
 
-    // If blocked, build and set a response. Otherwise, increment "allowed" counter if there's a facet param.
+    // If blocked, build and set a response. Otherwise, increment "allowed"
+    // counter if there's a facet param.
     if ($is_blocked) {
       $status_code = $return_gone ? Response::HTTP_GONE : Response::HTTP_FORBIDDEN;
       $formattableMarkup = new FormattableMarkup($blocked_message, ['@path' => $request->getPathInfo()]);
@@ -171,8 +174,6 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       $requestEvent->stopPropagation();
     }
     elseif (!empty($_GET['f']) && $use_cache) {
-      // If there's a facet param at all, we can consider incrementing "allowed".
-      // This is up to your design. If you want to track all requests with "f[]" param:
       $allowed_cache = $this->cacheBackend->get('facet_bot_blocker.allowed_requests');
       $allowed_count = $allowed_cache ? $allowed_cache->data : 0;
       $allowed_count++;
