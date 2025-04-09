@@ -2,12 +2,15 @@
 
 namespace Drupal\facet_bot_blocker\Controller;
 
+use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Site\Settings;
-use Drupal\Core\Cache\CacheBackendInterface;
-use Drupal\Component\Datetime\TimeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ *
+ */
 class FacetBotBlockerDashboardController extends ControllerBase {
 
   /**
@@ -62,7 +65,6 @@ class FacetBotBlockerDashboardController extends ControllerBase {
     //    ]);
     //    \Drupal::cache()->set('facet_bot_blocker.metrics_start_time', time());
     //    Adjust keys to suit your actual design.
-
     $blocked_cache = $this->cacheBackend->get('facet_bot_blocker.blocked_requests');
     $allowed_cache = $this->cacheBackend->get('facet_bot_blocker.allowed_requests');
     $last_blocked_cache = $this->cacheBackend->get('facet_bot_blocker.last_blocked_request');
@@ -133,4 +135,3 @@ class FacetBotBlockerDashboardController extends ControllerBase {
   }
 
 }
-

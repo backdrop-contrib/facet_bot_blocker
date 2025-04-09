@@ -2,17 +2,15 @@
 
 namespace Drupal\facet_bot_blocker\EventSubscriber;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Site\Settings;
-use Drupal\Component\Datetime\TimeInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * Event Subscriber to block requests with excessive facet parameters.
@@ -54,7 +52,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
     ModuleHandlerInterface $moduleHandler,
     CacheBackendInterface $cacheBackend,
     ConfigFactoryInterface $configFactory,
-    TimeInterface $time
+    TimeInterface $time,
   ) {
     $this->moduleHandler = $moduleHandler;
     $this->cacheBackend = $cacheBackend;
@@ -90,7 +88,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
     // Retrieve config from cache or config system.
     $immutableConfig = $this->configFactory->get('facet_bot_blocker.settings');
 
-    // The limit
+    // The limit.
     $limit_cache = $this->cacheBackend->get('facet_bot_blocker.limit');
     if ($use_cache && $limit_cache) {
       $limit = $limit_cache->data;
@@ -145,42 +143,43 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
 
     // If blocked, build and set a response. Otherwise, increment "allowed" counter if there's a facet param.
     if ($is_blocked) {
-        $status_code = $return_gone ? Response::HTTP_GONE : Response::HTTP_FORBIDDEN;
-        $formattableMarkup = new FormattableMarkup($blocked_message, ['@path' => $request->getPathInfo()]);
-        $response = new Response($formattableMarkup, $status_code);
-        // Add some counters if using cache.
-        if ($use_cache) {
-          // Increment blocked requests count.
-          $blocked_cache = $this->cacheBackend->get('facet_bot_blocker.blocked_requests');
-          $blocked_count = $blocked_cache ? $blocked_cache->data : 0;
-          $blocked_count++;
-          $this->cacheBackend->set('facet_bot_blocker.blocked_requests', $blocked_count);
+      $status_code = $return_gone ? Response::HTTP_GONE : Response::HTTP_FORBIDDEN;
+      $formattableMarkup = new FormattableMarkup($blocked_message, ['@path' => $request->getPathInfo()]);
+      $response = new Response($formattableMarkup, $status_code);
+      // Add some counters if using cache.
+      if ($use_cache) {
+        // Increment blocked requests count.
+        $blocked_cache = $this->cacheBackend->get('facet_bot_blocker.blocked_requests');
+        $blocked_count = $blocked_cache ? $blocked_cache->data : 0;
+        $blocked_count++;
+        $this->cacheBackend->set('facet_bot_blocker.blocked_requests', $blocked_count);
 
-          // Save last blocked info.
-          $last_blocked = [
-            'ip' => $request->getClientIp(),
-            'path' => $request->getUri(),
-            'user_agent' => $request->headers->get('User-Agent'),
-          ];
-          $this->cacheBackend->set('facet_bot_blocker.last_blocked_request', $last_blocked);
+        // Save last blocked info.
+        $last_blocked = [
+          'ip' => $request->getClientIp(),
+          'path' => $request->getUri(),
+          'user_agent' => $request->headers->get('User-Agent'),
+        ];
+        $this->cacheBackend->set('facet_bot_blocker.last_blocked_request', $last_blocked);
 
-          // If metrics start time not set, set it now.
-          if (!$this->cacheBackend->get('facet_bot_blocker.metrics_start_time')) {
-            $this->cacheBackend->set('facet_bot_blocker.metrics_start_time', $this->time->getRequestTime());
-          }
-        }
-        $requestEvent->setResponse($response);
-        $requestEvent->stopPropagation();
-    } elseif (!empty($_GET['f']) && $use_cache) {
-        // If there's a facet param at all, we can consider incrementing "allowed".
-        // This is up to your design. If you want to track all requests with "f[]" param:
-        $allowed_cache = $this->cacheBackend->get('facet_bot_blocker.allowed_requests');
-        $allowed_count = $allowed_cache ? $allowed_cache->data : 0;
-        $allowed_count++;
-        $this->cacheBackend->set('facet_bot_blocker.allowed_requests', $allowed_count);
+        // If metrics start time not set, set it now.
         if (!$this->cacheBackend->get('facet_bot_blocker.metrics_start_time')) {
           $this->cacheBackend->set('facet_bot_blocker.metrics_start_time', $this->time->getRequestTime());
         }
+      }
+      $requestEvent->setResponse($response);
+      $requestEvent->stopPropagation();
+    }
+    elseif (!empty($_GET['f']) && $use_cache) {
+      // If there's a facet param at all, we can consider incrementing "allowed".
+      // This is up to your design. If you want to track all requests with "f[]" param:
+      $allowed_cache = $this->cacheBackend->get('facet_bot_blocker.allowed_requests');
+      $allowed_count = $allowed_cache ? $allowed_cache->data : 0;
+      $allowed_count++;
+      $this->cacheBackend->set('facet_bot_blocker.allowed_requests', $allowed_count);
+      if (!$this->cacheBackend->get('facet_bot_blocker.metrics_start_time')) {
+        $this->cacheBackend->set('facet_bot_blocker.metrics_start_time', $this->time->getRequestTime());
+      }
     }
   }
 
