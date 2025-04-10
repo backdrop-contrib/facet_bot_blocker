@@ -1,6 +1,6 @@
 services:
   facet_bot_blocker.subscriber:
     class: Drupal\facet_bot_blocker\EventSubscriber\FacetBotBlockerEventSubscriber
-    arguments: ['@module_handler', '@cache.default', '@config.factory', '@datetime.time']
+    arguments: ['@module_handler', '@cache.default', '@config.factory', '@datetime.time', '@current_user']
     tags:
       - { name: event_subscriber }

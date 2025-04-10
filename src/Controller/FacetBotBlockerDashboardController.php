@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * The Facet Bot Blocker Dashboard controller.
+ *
  * Assembles a report page showing metrics of the Facet bot blocker module.
  */
 class FacetBotBlockerDashboardController extends ControllerBase {
@@ -67,9 +68,8 @@ class FacetBotBlockerDashboardController extends ControllerBase {
     $last_blocked = $last_blocked_cache ? $last_blocked_cache->data : [];
     $metrics_start_time = $start_time_cache ? $start_time_cache->data : $this->time->getRequestTime();
 
-    // Compute "time since metrics started."
+    // Compute "time since metrics started".
     $time_since_start = $this->time->getRequestTime() - $metrics_start_time;
-    // Optionally convert seconds to something more readable, e.g. hours:
     $time_since_string = round($time_since_start / 3600, 2) . ' hours';
 
     // Prepare a small table. You can theme this however you like.

@@ -7,6 +7,7 @@ use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -46,6 +47,13 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
   protected $time;
 
   /**
+   * The current user.
+   *
+   * @var AccountProxyInterface
+   */
+  protected $currentUser;
+
+  /**
    * Constructs a new FacetBotBlockerEventSubscriber.
    */
   public function __construct(
@@ -53,11 +61,13 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
     CacheBackendInterface $cacheBackend,
     ConfigFactoryInterface $configFactory,
     TimeInterface $time,
+    AccountProxyInterface $currentUser
   ) {
     $this->moduleHandler = $moduleHandler;
     $this->cacheBackend = $cacheBackend;
     $this->configFactory = $configFactory;
     $this->time = $time;
+    $this->currentUser = $currentUser;
   }
 
   /**
@@ -79,7 +89,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
 
     // If the user is logged in, and has a role with the "bypass facet bot
     // blocker" permission.
-    if (\Drupal::currentUser()->hasPermission('bypass facet bot blocker')) {
+    if ($this->currentUser->hasPermission('bypass facet bot blocker')) {
       return;
     }
 
@@ -120,7 +130,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
       }
     }
 
-    // Blocked Message
+    // Blocked Message.
     $message_cache = $this->cacheBackend->get('facet_bot_blocker.html');
     if ($use_cache && $message_cache) {
       $blocked_message = $message_cache->data;
