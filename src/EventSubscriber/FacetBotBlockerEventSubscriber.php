@@ -49,7 +49,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
   /**
    * The current user.
    *
-   * @var AccountProxyInterface
+   * @var \Drupal\Core\Session\AccountProxyInterface
    */
   protected $currentUser;
 
@@ -61,7 +61,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
     CacheBackendInterface $cacheBackend,
     ConfigFactoryInterface $configFactory,
     TimeInterface $time,
-    AccountProxyInterface $currentUser
+    AccountProxyInterface $currentUser,
   ) {
     $this->moduleHandler = $moduleHandler;
     $this->cacheBackend = $cacheBackend;
