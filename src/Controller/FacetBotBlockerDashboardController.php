@@ -4,8 +4,8 @@ namespace Drupal\facet_bot_blocker\Controller;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Site\Settings;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -32,9 +32,10 @@ class FacetBotBlockerDashboardController extends ControllerBase {
   /**
    * Constructs a new FacetBotBlockerDashboardController.
    */
-  public function __construct(CacheBackendInterface $cacheBackend, TimeInterface $time) {
+  public function __construct(CacheBackendInterface $cacheBackend, TimeInterface $time, ConfigFactoryInterface $configFactory) {
     $this->cacheBackend = $cacheBackend;
     $this->time = $time;
+    $this->configFactory = $configFactory;
   }
 
   /**
@@ -43,7 +44,8 @@ class FacetBotBlockerDashboardController extends ControllerBase {
   public static function create(ContainerInterface $container): self {
     return new static(
       $container->get('cache.default'),
-      $container->get('datetime.time')
+      $container->get('datetime.time'),
+      $container->get('config.factory')
     );
   }
 
@@ -52,9 +54,9 @@ class FacetBotBlockerDashboardController extends ControllerBase {
    */
   public function dashboard(): array {
     // Get the configured facet limit.
-    // Typically you'd store config in Drupal's config system, but
-    // if you are using Settings, retrieve it like this:
-    $limit = Settings::get('facets_bot_blocker_limit', '1');
+    $immutableConfig = $this->configFactory->get('facet_bot_blocker.settings');
+
+    $limit = $immutableConfig->get('facets_bot_blocker_limit');
 
     // Retrieve counters and data from cache.
     $blocked_cache = $this->cacheBackend->get('facet_bot_blocker.blocked_requests');
@@ -72,6 +74,17 @@ class FacetBotBlockerDashboardController extends ControllerBase {
     $time_since_start = $this->time->getRequestTime() - $metrics_start_time;
     $time_since_string = round($time_since_start / 3600, 2) . ' hours';
 
+    if ($blocked_requests === 0) {
+      $percent = '0%';
+    }
+    elseif ($allowed_requests == 0) {
+      $percent = '100%';
+    }
+    else {
+      $percent = (float) $blocked_requests / ((float) $blocked_requests + (float) $allowed_requests);
+      $percent = sprintf("%.2f%%", $percent * 100);
+    }
+
     // Prepare a small table. You can theme this however you like.
     $rows = [];
     $rows[] = [
@@ -85,6 +98,10 @@ class FacetBotBlockerDashboardController extends ControllerBase {
     $rows[] = [
       $this->t('Allowed requests'),
       $allowed_requests,
+    ];
+    $rows[] = [
+      $this->t('Percent blocked'),
+      $percent,
     ];
     $rows[] = [
       $this->t('Time since metrics started'),
