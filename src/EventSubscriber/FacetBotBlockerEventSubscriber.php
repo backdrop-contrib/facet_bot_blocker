@@ -149,7 +149,7 @@ class FacetBotBlockerEventSubscriber implements EventSubscriberInterface {
     // Check if the request is "over the limit" => blocked.
     $request = $requestEvent->getRequest();
     $is_blocked = FALSE;
-    if (isset($_GET['f'][$limit])) {
+    if (isset($_GET['f']) && is_array($_GET['f']) && count($_GET['f']) > $limit) {
       $is_blocked = TRUE;
     }
 
