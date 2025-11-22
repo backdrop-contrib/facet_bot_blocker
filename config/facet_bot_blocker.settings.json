@@ -1,0 +1,12 @@
+{
+  "_config_name": "facet_bot_blocker.settings",
+  "_config_static": true,
+  "_config_translatables": [
+    "title",
+    "message"
+  ],
+  "limit": 1,
+  "return_gone": false,
+  "title": "Excessive crawling detected",
+  "message": "<p>We have blocked your request.</p>"
+}
