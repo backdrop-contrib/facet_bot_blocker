@@ -154,6 +154,14 @@ function facet_bot_blocker_settings($form, &$form_state) {
     '#required' => TRUE,
   ];
 
+  $form['base_paths'] = [
+    '#type' => 'textarea',
+    '#title' => t('Facet base paths (one per line)'),
+    '#description' => t('Check the number of facets on the following paths. If blank then all paths will be checked. This is helpful if using Facet API Pretty paths which requires checking the number of nested directories instead of the default approach. The base path is removed when counting the paths. E.g. "library/search"'),
+    '#default_value' => implode("\n", $config->get('base_paths') ?? []),
+    '#access' => module_exists('facetapi_pretty_paths'),
+  ];
+
   $form['return_gone'] = [
     '#type' => 'checkbox',
     '#title' => t('Return 410 Gone instead of 403 Forbidden'),
@@ -182,7 +190,35 @@ function facet_bot_blocker_settings($form, &$form_state) {
     '#default_value' => $config->get('message') ?? '<p>We have blocked your request.</p>',
   ];
 
-  return system_settings_form($form);
+  $form['actions']['#type'] = 'actions';
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save configuration'),
+  );
+
+  return $form;
+}
+
+/**
+ * Submit handler for bot_blocker_settings().
+ */
+function facet_bot_blocker_settings_submit($form, &$form_state) {
+  form_state_values_clean($form_state);
+  $config = config('facet_bot_blocker.settings');
+
+  // Base paths → trimmed array.
+  $base_paths = array_filter(array_map('trim', explode("\n", $form_state['values']['base_paths'])));
+
+  $config
+    ->set('return_gone', (bool) $form_state['values']['return_gone'])
+    ->set('track_blocks', (bool) $form_state['values']['track_blocks'])
+    ->set('title', $form_state['values']['title'])
+    ->set('message', $form_state['values']['message'])
+    ->set('base_paths', $base_paths)
+    ->set('limit', (int) ($form_state['values']['limit'] ?? 5))
+    ->save();
+
+  backdrop_set_message(t('Bot Blocker configuration saved.'));
 }
 
 /**
@@ -260,6 +296,22 @@ function facet_bot_blocker_init() {
   $is_blocked = FALSE;
   if (isset($_GET['f']) && is_array($_GET['f']) && count($_GET['f']) > $limit) {
     $is_blocked = TRUE;
+  }
+
+  if (module_exists('facetapi_pretty_paths')) {
+    $base_paths = $config->get('base_paths') ?? [''];
+    foreach ($base_paths as $base_path) {
+      if (isset($_GET['q']) && str_contains($_GET['q'], $base_path)) {
+        $path_to_check = str_replace($base_path, '', $_GET['q']);
+        preg_match_all('/\//', $path_to_check, $matches);
+        // Count the number of matches.
+        // We double the limit, because it takes 2 slashes to equal one
+        // parameter.
+        if (count($matches[0]) > ($limit * 2)) {
+          $is_blocked = TRUE;
+        }
+      }
+    }
   }
 
   // If blocked, build and set a response. Otherwise, increment "allowed"

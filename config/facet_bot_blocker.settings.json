@@ -9,5 +9,6 @@
   "return_gone": false,
   "track_blocks": true,
   "title": "Excessive crawling detected",
-  "message": "<p>We have blocked your request.</p>"
+  "message": "<p>We have blocked your request.</p>",
+  "base_paths": []
 }
