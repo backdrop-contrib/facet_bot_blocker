@@ -302,7 +302,7 @@ function facet_bot_blocker_init() {
     $base_paths = $config->get('base_paths') ?? [''];
     foreach ($base_paths as $base_path) {
       if (isset($_GET['q']) && str_contains($_GET['q'], $base_path)) {
-        $path_to_check = str_replace($base_path, '', $_GET['q']);
+        $path_to_check = str_replace(rtrim($base_path, '/'), '', $_GET['q']);
         preg_match_all('/\//', $path_to_check, $matches);
         // Count the number of matches.
         // We double the limit, because it takes 2 slashes to equal one
