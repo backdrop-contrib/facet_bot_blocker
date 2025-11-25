@@ -148,8 +148,8 @@ function facet_bot_blocker_settings($form, &$form_state) {
   $form['limit'] = [
     '#type' => 'number',
     '#title' => t('Facet parameter limit'),
-    '#description' => t('Block requests if a facet query parameter with this index is found, e.g., f[@limit]. Default is 1.'),
-    '#default_value' => $config->get('limit') ?? 1,
+    '#description' => t('Block requests if a facet query parameter with this index is found, e.g., f[@limit]. Default is 5.'),
+    '#default_value' => $config->get('limit') ?? 5,
     '#min' => 1,
     '#required' => TRUE,
   ];
@@ -209,7 +209,7 @@ function facet_bot_blocker_init() {
   if ($fast_cache && $limit_cache) {
     $limit = $limit_cache->data;
   } else {
-    $limit = $config->get('facets_bot_blocker_limit');
+    $limit = $config->get('limit');
     // Fallback if config is missing:
     if (empty($limit)) {
       $limit = 1;
