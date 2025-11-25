@@ -5,7 +5,7 @@ The **Facet Bot Blocker** module blocks requests that exceed a defined facet par
 ## Requirements
 
 - This module does not strictly require any other contributed modules.
-- **Optional**: Installing either the [Memcache](https://www.drupal.org/project/memcache) or [Redis](https://www.drupal.org/project/redis) module allows storing tracking counters and config in memory (instead of the database), improving performance in high-traffic environments.
+- **Optional**: Installing either the [Memcache](https://backdropcms.org/project/memcache) or [Redis](https://github.com/backdrop-contrib/redis) module allows storing tracking counters and config in memory (instead of the database), improving performance in high-traffic environments.
 
 ## Installation
 
