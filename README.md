@@ -14,11 +14,11 @@ Install this module using the official Backdrop CMS instructions at
 
 ## Configuration
 
-1 **Enable the module**: Enable the **Facet Bot Blocker** module from the **Extend** page (`/admin/modules`) or using Bee (`bee en facet_bot_blocker`).
-2 **Configure the module**:
+1. **Enable the module**: Enable the **Facet Bot Blocker** module from the **Extend** page (`/admin/modules`) or using Bee (`bee en facet_bot_blocker`).
+2. **Configure the module**:
     - Go to the module’s settings form (e.g., `/admin/config/system/facet-bot-blocker`).
     - Set the facet parameter limit, decide whether to return `410 Gone` or `403 Forbidden`, and optionally customize the blocking message.
-3 **(Optional) Check the dashboard**:
+3. **(Optional) Check the dashboard**:
     - A dashboard page (e.g., `/admin/reports/facet-bot-blocker`) displays counts of blocked and allowed requests, the last blocked IP, and other metrics. This data is stored in cache if memcache/redis is installed.
 
 ## Maintainers
@@ -34,6 +34,4 @@ complete text.
 
 Ported from Drupal by [Herb v/d Dool](https://github.com/herbdool).
 
-Drupal maintainers:
-
-- **John Brandenburg (bburg) @ [Forum One](https://www.forumone.com/)** - <https://www.drupal.org/u/bburg>
+Drupal maintainers: [John Brandenburg (bburg)](https://www.drupal.org/u/bburg)
