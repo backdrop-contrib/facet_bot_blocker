@@ -3,5 +3,5 @@ type = module
 backdrop = 1.x
 description = 'Block requests for excessive faceted search URLs.'
 package = 'Performance and scalability'
-configure = facet_bot_blocker.settings_form
+configure = admin/config/system/facet-bot-blocker
 dependencies[] = facetapi

@@ -10,13 +10,13 @@
  */
 function facet_bot_blocker_menu() {
   $items['admin/config/system/facet-bot-blocker'] = [
-    'title' => 'Facet Bot Blocker Settings',
+    'title' => 'Facet Bot Blocker',
     'page callback' => 'backdrop_get_form',
     'page arguments' => ['facet_bot_blocker_settings_form'],
     'access arguments' => ['administer facet blot blocker'],
   ];
   $items['admin/reports/facet-bot-blocker'] = [
-    'title' => 'Facet Bot Blocker Dashboard',
+    'title' => 'Facet Bot Blocker',
     'page callback' => 'facet_bot_blocker_dashboard',
     'access arguments' => ['access facet bot blocker dashboard'],
   ];
@@ -223,12 +223,23 @@ function facet_bot_blocker_init() {
     }
   }
 
+  // Blocked Title
+  $title_cache = cache_get('facet_bot_blocker.title');
+  if ($use_cache && $title_cache) {
+    $blocked_title = $title_cache->data;
+  } else {
+    $blocked_title = $config->getTranslated('title') ?? 'Excessive crawling detected';
+
+    if ($use_cache) {
+      cache_set('facet_bot_blocker.message', $blocked_title);
+    }
+  }
+
   // Blocked Message.
   $message_cache = cache_get('facet_bot_blocker.message');
   if ($use_cache && $message_cache) {
     $blocked_message = $message_cache->data;
   } else {
-    $blocked_title = $config->getTranslated('title') ?? 'Excessive crawling detected';
     $blocked_message = $config->getTranslated('message') ?? '<p>We have blocked your request.</p>';
 
     if ($use_cache) {
@@ -258,7 +269,7 @@ function facet_bot_blocker_init() {
       $last_blocked = [
         'ip' => ip_address(),
         'path' => request_uri(),
-        'user_agent' => $_SERVER['HTTP_USER_AGENT']
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
       ];
       cache_set('facet_bot_blocker.last_blocked_request', $last_blocked);
 
@@ -269,7 +280,7 @@ function facet_bot_blocker_init() {
     }
 
     backdrop_add_http_header('Status', $status_code);
-    backdrop_set_title(t($blocked_title));
+    backdrop_set_title($blocked_title);
     print theme('maintenance_page', ['content' => $blocked_message, ['@path' => request_path()]]);
     backdrop_page_footer();
   } elseif (!empty($_GET['f']) && $use_cache) {
