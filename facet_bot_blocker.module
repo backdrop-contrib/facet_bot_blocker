@@ -12,7 +12,7 @@ function facet_bot_blocker_menu() {
   $items['admin/config/system/facet-bot-blocker'] = [
     'title' => 'Facet Bot Blocker',
     'page callback' => 'backdrop_get_form',
-    'page arguments' => ['facet_bot_blocker_settings_form'],
+    'page arguments' => ['facet_bot_blocker_settings'],
     'access arguments' => ['administer facet blot blocker'],
   ];
   $items['admin/reports/facet-bot-blocker'] = [
@@ -125,7 +125,7 @@ function facet_bot_blocker_dashboard() {
     ];
   }
 
-  $build = t('<p>Metrics are tracked if Memcache or Redis caching modules are used.</p>');
+  $build = t('<p>Metrics are tracked only if enabled in the Facet Bot Blocker settings. Disable tracking if it impacts performance.</p>');
   $build .= theme('table', [
     'header' => [
       t('Metric'),
@@ -142,7 +142,7 @@ function facet_bot_blocker_dashboard() {
  *
  * @ingroup forms
  */
-function facet_bot_blocker_settings_form($form, &$form_state) {
+function facet_bot_blocker_settings($form, &$form_state) {
   $config = config('facet_bot_blocker.settings');
   $form['#config'] = 'facet_bot_blocker.settings';
   $form['limit'] = [
@@ -159,6 +159,13 @@ function facet_bot_blocker_settings_form($form, &$form_state) {
     '#title' => t('Return 410 Gone instead of 403 Forbidden'),
     '#default_value' => $config->get('return_gone') ?? FALSE,
     '#description' => t('If enabled, blocked facet requests will return HTTP 410 Gone instead of 403 Forbidden.'),
+  ];
+
+  $form['track_blocks'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Track blocked requests'),
+    '#default_value' => $config->get('track_blocks') ?? FALSE,
+    '#description' => t('<em>Warning: may impact performance.</em> If enabled, blocked facet requests will be tracked in the cache. If not using !memcache or !redis to store cache in memory, Backdrop will store cache in the database which may impact performance on sites with heavy traffic.', ['!memcache' => l('Memcache', 'https://backdropcms.org/project/memcache'), '!redis' => l('Redis', 'https://github.com/backdrop-contrib/redis')]),
   ];
 
   $form['title'] = [
@@ -188,16 +195,18 @@ function facet_bot_blocker_init() {
     return;
   }
 
-  // Determine if we should use cache for storing config values. We'll only
-  // do so if memcache or redis is installed.
-  $use_cache = (module_exists('memcache') || module_exists('redis'));
-
   // Retrieve config from cache or config system.
   $config = config('facet_bot_blocker.settings');
 
+  // Determine if we should use cache for storing config values. Useful if
+  // traffic is low or if using memcache or redis.
+  $fast_cache = (module_exists('memcache') || module_exists('redis'));
+
+  $track_blocks = $config->get('track_blocks') ?? TRUE;
+
   // The limit.
   $limit_cache = cache_get('facet_bot_blocker.limit');
-  if ($use_cache && $limit_cache) {
+  if ($fast_cache && $limit_cache) {
     $limit = $limit_cache->data;
   } else {
     $limit = $config->get('facets_bot_blocker_limit');
@@ -207,42 +216,42 @@ function facet_bot_blocker_init() {
     }
 
     // If we should cache it:
-    if ($use_cache) {
+    if ($fast_cache) {
       cache_set('facet_bot_blocker.limit', $limit);
     }
   }
 
   // -- Return Gone? --
   $gone_cache = cache_get('facet_bot_blocker.return_gone');
-  if ($use_cache && $gone_cache) {
+  if ($fast_cache && $gone_cache) {
     $return_gone = $gone_cache->data;
   } else {
     $return_gone = (bool) $config->get('return_gone');
-    if ($use_cache) {
+    if ($fast_cache) {
       cache_set('facet_bot_blocker.return_gone', $return_gone);
     }
   }
 
   // Blocked Title
   $title_cache = cache_get('facet_bot_blocker.title');
-  if ($use_cache && $title_cache) {
+  if ($fast_cache && $title_cache) {
     $blocked_title = $title_cache->data;
   } else {
     $blocked_title = $config->getTranslated('title') ?? 'Excessive crawling detected';
 
-    if ($use_cache) {
-      cache_set('facet_bot_blocker.message', $blocked_title);
+    if ($fast_cache) {
+      cache_set('facet_bot_blocker.title', $blocked_title);
     }
   }
 
   // Blocked Message.
   $message_cache = cache_get('facet_bot_blocker.message');
-  if ($use_cache && $message_cache) {
+  if ($fast_cache && $message_cache) {
     $blocked_message = $message_cache->data;
   } else {
     $blocked_message = $config->getTranslated('message') ?? '<p>We have blocked your request.</p>';
 
-    if ($use_cache) {
+    if ($fast_cache) {
       cache_set('facet_bot_blocker.message', $blocked_message);
     }
   }
@@ -257,39 +266,40 @@ function facet_bot_blocker_init() {
   // counter if there's a facet param.
   if ($is_blocked) {
     $status_code = $return_gone ? '410 Gone' : '403 Forbidden';
-    // Add some counters if using cache.
-    if ($use_cache) {
-      // Increment blocked requests count.
-      $blocked_cache = cache_get('facet_bot_blocker.blocked_requests');
-      $blocked_count = $blocked_cache ? $blocked_cache->data : 0;
-      $blocked_count++;
-      cache_set('facet_bot_blocker.blocked_requests', $blocked_count);
-
-      // Save last blocked info.
-      $last_blocked = [
-        'ip' => ip_address(),
-        'path' => request_uri(),
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-      ];
-      cache_set('facet_bot_blocker.last_blocked_request', $last_blocked);
-
-      // If metrics start time not set, set it now.
-      if (!cache_get('facet_bot_blocker.metrics_start_time')) {
-        cache_set('facet_bot_blocker.metrics_start_time', REQUEST_TIME);
-      }
-    }
 
     backdrop_add_http_header('Status', $status_code);
     backdrop_set_title($blocked_title);
     print theme('maintenance_page', ['content' => $blocked_message, ['@path' => request_path()]]);
     backdrop_page_footer();
-  } elseif (!empty($_GET['f']) && $use_cache) {
-    $allowed_cache = cache_get('facet_bot_blocker.allowed_requests');
-    $allowed_count = $allowed_cache ? $allowed_cache->data : 0;
-    $allowed_count++;
-    cache_set('facet_bot_blocker.allowed_requests', $allowed_count);
-    if (!cache_get('facet_bot_blocker.metrics_start_time')) {
-      cache_set('facet_bot_blocker.metrics_start_time', REQUEST_TIME);
+
+    // Add some counters if using cache.
+    if ($track_blocks) {
+      // Increment blocked requests count.
+      facet_bot_blocker_bump_counter('blocked_requests');
+
+      // Save last blocked info.
+      cache_set('facet_bot_blocker.last_blocked_request', [
+        'ip' => ip_address(),
+        'path' => request_uri(),
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+      ]);
     }
+  } elseif (!empty($_GET['f']) && $track_blocks) {
+    facet_bot_blocker_bump_counter('allowed_requests');
+  }
+}
+
+/**
+ * Bump counter
+ *
+ * @param string $key
+ */
+function facet_bot_blocker_bump_counter(string $key) {
+  $item  = cache_get("facet_bot_blocker.$key");
+  $count = $item ? (int) $item->data : 0;
+  cache_set("facet_bot_blocker.$key", ++$count);
+
+  if (!cache_get('facet_bot_blocker.metrics_start_time')) {
+    cache_set('facet_bot_blocker.metrics_start_time', REQUEST_TIME);
   }
 }
