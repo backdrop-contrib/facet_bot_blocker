@@ -2,6 +2,8 @@
 
 The **Facet Bot Blocker** module blocks requests that exceed a defined facet parameter limit. Specifically, it detects and blocks crawlers/bots that keep requesting deeper levels of facet parameters (e.g., `f[3]`, `f[4]`, etc.), which can lead to performance and SEO issues if left unchecked.
 
+It can also be configured to check facet paths set to use FacetAPI Pretty Paths module, with each base path specified.
+
 ## Requirements
 
 - This module does not strictly require any other contributed modules.

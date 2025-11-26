@@ -148,18 +148,26 @@ function facet_bot_blocker_settings($form, &$form_state) {
   $form['limit'] = [
     '#type' => 'number',
     '#title' => t('Facet parameter limit'),
-    '#description' => t('Block requests if a facet query parameter with this index is found, e.g., f[@limit]. Default is 5.'),
+    '#description' => t('Block requests if a facet query parameter with this index is found, e.g., <code>f[@limit]</code>. Default is 5.'),
     '#default_value' => $config->get('limit') ?? 5,
     '#min' => 1,
     '#required' => TRUE,
   ];
 
-  $form['base_paths'] = [
+  $form['pretty_paths'] = [
+    '#type' => 'details',
+    '#summary' => t('Facet Pretty Paths'),
+    '#open' => FALSE,
+    '#access' => module_exists('facetapi_pretty_paths'),
+  ];
+  $form['pretty_paths']['help'] = [
+    '#markup' => t('If using !facet_pretty_paths module, the facet query parameters are divided by "slashes" rather than <code>f=</code>. For example, <code>search/url/segment1/segment2/</code> where each segment looks like <code>alias/value</code>. It requires checking the number of segments for specific paths.', ['!facet_pretty_paths' => l('FacetAPI Pretty Paths', 'https://backdropcms.org/project/facetapi_pretty_paths')]),
+  ];
+  $form['pretty_paths']['base_paths'] = [
     '#type' => 'textarea',
     '#title' => t('Facet base paths (one per line)'),
-    '#description' => t('Check the number of facets on the following paths. If blank then all paths will be checked. This is helpful if using Facet API Pretty paths which requires checking the number of nested directories instead of the default approach. The base path is removed when counting the paths. E.g. "library/search"'),
+    '#description' => t('Check the number of "pretty path" facets on the following base paths. If blank then no paths will be checked. The base path is removed when counting the paths so only segments are counted. E.g. if the base path entered here is <code>library/search</code> (do not include a trailing slash) then this will be stripped from the path <code>library/search/theme/one/theme/two/theme/three</code>. It will calculate three facet parameters based on the path.'),
     '#default_value' => implode("\n", $config->get('base_paths') ?? []),
-    '#access' => module_exists('facetapi_pretty_paths'),
   ];
 
   $form['return_gone'] = [
@@ -176,18 +184,11 @@ function facet_bot_blocker_settings($form, &$form_state) {
     '#description' => t('<em>Warning: may impact performance.</em> If enabled, blocked facet requests will be tracked in the cache. If not using !memcache or !redis to store cache in memory, Backdrop will store cache in the database which may impact performance on sites with heavy traffic.', ['!memcache' => l('Memcache', 'https://backdropcms.org/project/memcache'), '!redis' => l('Redis', 'https://github.com/backdrop-contrib/redis')]),
   ];
 
-  $form['title'] = [
-    '#type' => 'textfield',
-    '#title' => t('Custom blocked message title'),
-    '#description' => t('Title displayed when a request is blocked.'),
-    '#default_value' => $config->get('title') ?? 'Excessive crawling detected',
-  ];
-
   $form['message'] = [
     '#type' => 'textarea',
     '#title' => t('Custom blocked message'),
-    '#description' => t('HTML message displayed when a request is blocked.'),
-    '#default_value' => $config->get('message') ?? '<p>We have blocked your request.</p>',
+    '#description' => t('HTML message displayed when a request is blocked. The check happens early in the boot process when translations are not yet available.'),
+    '#default_value' => $config->get('message') ?? '<h1>Excessive crawling detected</h1><p>We have blocked your request.</p>',
   ];
 
   $form['actions']['#type'] = 'actions';
@@ -212,22 +213,19 @@ function facet_bot_blocker_settings_submit($form, &$form_state) {
   $config
     ->set('return_gone', (bool) $form_state['values']['return_gone'])
     ->set('track_blocks', (bool) $form_state['values']['track_blocks'])
-    ->set('title', $form_state['values']['title'])
     ->set('message', $form_state['values']['message'])
     ->set('base_paths', $base_paths)
     ->set('limit', (int) ($form_state['values']['limit'] ?? 5))
     ->save();
 
-  backdrop_set_message(t('Bot Blocker configuration saved.'));
+  backdrop_set_message(t('Facet Bot Blocker configuration saved.'));
 }
 
 /**
- * Implements hook_init().
+ * Implements hook_boot().
  */
-function facet_bot_blocker_init() {
-  // If the user is logged in, and has a role with the "bypass facet bot
-  // blocker" permission.
-  if (user_access('bypass facet bot blocker')) {
+function facet_bot_blocker_boot() {
+  if (facet_bot_blocker_bypass()) {
     return;
   }
 
@@ -268,24 +266,12 @@ function facet_bot_blocker_init() {
     }
   }
 
-  // Blocked Title
-  $title_cache = cache_get('facet_bot_blocker.title');
-  if ($fast_cache && $title_cache) {
-    $blocked_title = $title_cache->data;
-  } else {
-    $blocked_title = $config->getTranslated('title') ?? 'Excessive crawling detected';
-
-    if ($fast_cache) {
-      cache_set('facet_bot_blocker.title', $blocked_title);
-    }
-  }
-
   // Blocked Message.
   $message_cache = cache_get('facet_bot_blocker.message');
   if ($fast_cache && $message_cache) {
     $blocked_message = $message_cache->data;
   } else {
-    $blocked_message = $config->getTranslated('message') ?? '<p>We have blocked your request.</p>';
+    $blocked_message = $config->get('message') ?? '<h1>Excessive crawling detected</h1><p>We have blocked your request.</p>';
 
     if ($fast_cache) {
       cache_set('facet_bot_blocker.message', $blocked_message);
@@ -298,18 +284,18 @@ function facet_bot_blocker_init() {
     $is_blocked = TRUE;
   }
 
-  if (module_exists('facetapi_pretty_paths')) {
-    $base_paths = $config->get('base_paths') ?? [''];
-    foreach ($base_paths as $base_path) {
-      if (isset($_GET['q']) && str_contains($_GET['q'], $base_path)) {
-        $path_to_check = str_replace(rtrim($base_path, '/'), '', $_GET['q']);
-        preg_match_all('/\//', $path_to_check, $matches);
-        // Count the number of matches.
-        // We double the limit, because it takes 2 slashes to equal one
-        // parameter.
-        if (count($matches[0]) > ($limit * 2)) {
-          $is_blocked = TRUE;
-        }
+  // If using FacetAPI Pretty Paths module, check the nested directories instead
+  // of the facet parameters.
+  $base_paths = $config->get('base_paths') ?? [''];
+  foreach ($base_paths as $base_path) {
+    if (isset($_GET['q']) && str_contains($_GET['q'], $base_path)) {
+      $path_to_check = str_replace(rtrim($base_path, '/'), '', $_GET['q']);
+      preg_match_all('/\//', $path_to_check, $matches);
+      // Count the number of matches.
+      // We double the limit, because it takes 2 slashes to equal one
+      // "f" parameter.
+      if (count($matches[0]) > ($limit * 2)) {
+        $is_blocked = TRUE;
       }
     }
   }
@@ -320,9 +306,8 @@ function facet_bot_blocker_init() {
     $status_code = $return_gone ? '410 Gone' : '403 Forbidden';
 
     backdrop_add_http_header('Status', $status_code);
-    backdrop_set_title($blocked_title);
-    print theme('maintenance_page', ['content' => $blocked_message, ['@path' => request_path()]]);
-    backdrop_page_footer();
+    print $blocked_message;
+    exit();
 
     // Add some counters if using cache.
     if ($track_blocks) {
@@ -353,5 +338,34 @@ function facet_bot_blocker_bump_counter(string $key) {
 
   if (!cache_get('facet_bot_blocker.metrics_start_time')) {
     cache_set('facet_bot_blocker.metrics_start_time', REQUEST_TIME);
+  }
+}
+
+/**
+ * Check if current user can bypass the blocker.
+ *
+ * @return bool
+ */
+function facet_bot_blocker_bypass() {
+  global $user;
+  if ($user->uid == 1) {
+    return TRUE;
+  }
+
+  static $backdrop_static_fast;
+  if (!isset($backdrop_static_fast)) {
+    $backdrop_static_fast['perm'] = &backdrop_static(__FUNCTION__);
+  }
+  $perm = &$backdrop_static_fast['perm'];
+  if (!isset($perm[$user->uid])) {
+    $perm[$user->uid] = [];
+    foreach ($user->roles as $role) {
+      $role_config = config('user.role.' . $role);
+      $perm[$user->uid] += $role_config->get('permissions');
+    }
+  }
+
+  if (in_array('bypass facet bot blocker', $perm[$user->uid])) {
+    return TRUE;
   }
 }
