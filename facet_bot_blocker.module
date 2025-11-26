@@ -266,9 +266,9 @@ function facet_bot_blocker_settings_submit($form, &$form_state) {
  * Implements hook_boot().
  */
 function facet_bot_blocker_boot() {
-  // if (facet_bot_blocker_bypass()) {
-  //   return;
-  // }
+  if (facet_bot_blocker_bypass()) {
+    return;
+  }
 
   $request_uri = isset($_SERVER['REQUEST_URI']) ? htmlspecialchars($_SERVER['REQUEST_URI']) : '';
   $ua_string = isset($_SERVER['HTTP_USER_AGENT']) ? htmlspecialchars($_SERVER['HTTP_USER_AGENT']) : '';
