@@ -5,5 +5,7 @@
   "return_gone": false,
   "track_blocks": true,
   "message": "<h1>Excessive crawling detected</h1><p>We have blocked your request.</p>",
-  "base_paths": []
+  "base_paths": [],
+  "flood_ip_limit": 10,
+  "flood_ip_window": 0
 }

@@ -6,6 +6,17 @@
  */
 
 /**
+ * Implements hook_config_info().
+ */
+function facet_bot_blocker_config_info() {
+  $prefixes['facet_bot_blocker.settings'] = array(
+    'label' => t('Facet Bot Blocker'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
+}
+
+/**
  * Implements hook_menu().
  */
 function facet_bot_blocker_menu() {
@@ -144,7 +155,6 @@ function facet_bot_blocker_dashboard() {
  */
 function facet_bot_blocker_settings($form, &$form_state) {
   $config = config('facet_bot_blocker.settings');
-  $form['#config'] = 'facet_bot_blocker.settings';
   $form['limit'] = [
     '#type' => 'number',
     '#title' => t('Facet parameter limit'),
@@ -152,22 +162,6 @@ function facet_bot_blocker_settings($form, &$form_state) {
     '#default_value' => $config->get('limit') ?? 5,
     '#min' => 1,
     '#required' => TRUE,
-  ];
-
-  $form['pretty_paths'] = [
-    '#type' => 'details',
-    '#summary' => t('Facet Pretty Paths'),
-    '#open' => FALSE,
-    '#access' => module_exists('facetapi_pretty_paths'),
-  ];
-  $form['pretty_paths']['help'] = [
-    '#markup' => t('If using !facet_pretty_paths module, the facet query parameters are divided by "slashes" rather than <code>f=</code>. For example, <code>search/url/segment1/segment2/</code> where each segment looks like <code>alias/value</code>. It requires checking the number of segments for specific paths.', ['!facet_pretty_paths' => l('FacetAPI Pretty Paths', 'https://backdropcms.org/project/facetapi_pretty_paths')]),
-  ];
-  $form['pretty_paths']['base_paths'] = [
-    '#type' => 'textarea',
-    '#title' => t('Facet base paths (one per line)'),
-    '#description' => t('Check the number of "pretty path" facets on the following base paths. If blank then no paths will be checked. The base path is removed when counting the paths so only segments are counted. E.g. if the base path entered here is <code>library/search</code> (do not include a trailing slash) then this will be stripped from the path <code>library/search/theme/one/theme/two/theme/three</code>. It will calculate three facet parameters based on the path.'),
-    '#default_value' => implode("\n", $config->get('base_paths') ?? []),
   ];
 
   $form['return_gone'] = [
@@ -191,11 +185,56 @@ function facet_bot_blocker_settings($form, &$form_state) {
     '#default_value' => $config->get('message') ?? '<h1>Excessive crawling detected</h1><p>We have blocked your request.</p>',
   ];
 
+  $form['pretty_paths'] = [
+    '#type' => 'details',
+    '#summary' => t('Facet Pretty Paths'),
+    '#open' => FALSE,
+    '#access' => module_exists('facetapi_pretty_paths'),
+  ];
+  $form['pretty_paths']['help'] = [
+    '#markup' => t('If using !facet_pretty_paths module, the facet query parameters are divided by "slashes" rather than <code>f=</code>. For example, <code>search/url/segment1/segment2/</code> where each segment looks like <code>alias/value</code>. It requires checking the number of segments for specific paths.', ['!facet_pretty_paths' => l('FacetAPI Pretty Paths', 'https://backdropcms.org/project/facetapi_pretty_paths')]),
+  ];
+  $form['pretty_paths']['base_paths'] = [
+    '#type' => 'textarea',
+    '#title' => t('Facet base paths (one per line)'),
+    '#description' => t('Check the number of "pretty path" facets on the following base paths. If blank then no paths will be checked. The base path is removed when counting the paths so only segments are counted. E.g. if the base path entered here is <code>library/search</code> (do not include a trailing slash) then this will be stripped from the path <code>library/search/theme/one/theme/two/theme/three</code>. It will calculate three facet parameters based on the path.'),
+    '#default_value' => implode("\n", $config->get('base_paths') ?? []),
+  ];
+
+  $form['ip_limit_settings'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Allow request until threshold reached'),
+  ];
+  $form['ip_limit_settings']['wrapper'] = [
+    '#type' => 'container',
+    '#attributes' => ['class' => ['container-inline']],
+  ];
+  $form['ip_limit_settings']['wrapper']['flood_ip_limit'] = [
+    '#type' => 'select',
+    '#title' => t('Attempted request limit'),
+    '#title_display' => 'invisible',
+    '#options' => backdrop_map_assoc([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 75, 100, 125, 150, 200, 250, 500]),
+    '#default_value' => $config->get('flood_ip_limit'),
+    '#prefix' => t('Limit to'),
+  ];
+  $form['ip_limit_settings']['wrapper']['flood_ip_window'] = [
+    '#type' => 'select',
+    '#title' => t('Attempted request time window'),
+    '#title_display' => 'invisible',
+    '#options' => [0 => t('None (disabled)')] + backdrop_map_assoc([60, 180, 300, 600, 900, 1800, 2700, 3600, 10800, 21600, 32400, 43200, 86400], 'format_interval'),
+    '#default_value' => $config->get('flood_ip_window'),
+    '#prefix' => t('attempts from one IP address per'),
+  ];
+  $form['ip_limit_settings']['help'] = [
+    '#type' => 'item',
+    '#description' => t('Instead of blocking all facet path requests that exceed the facet parameter limit, allow these requests from the current IP until a threshold has been reached. By default this is disabled, which is to always block for the facet path.'),
+  ];
+
   $form['actions']['#type'] = 'actions';
-  $form['actions']['submit'] = array(
+  $form['actions']['submit'] = [
     '#type' => 'submit',
     '#value' => t('Save configuration'),
-  );
+  ];
 
   return $form;
 }
@@ -216,6 +255,8 @@ function facet_bot_blocker_settings_submit($form, &$form_state) {
     ->set('message', $form_state['values']['message'])
     ->set('base_paths', $base_paths)
     ->set('limit', (int) ($form_state['values']['limit'] ?? 5))
+    ->set('flood_ip_limit', (int) $form_state['values']['flood_ip_limit'])
+    ->set('flood_ip_window', (int) $form_state['values']['flood_ip_window'])
     ->save();
 
   backdrop_set_message(t('Facet Bot Blocker configuration saved.'));
@@ -228,6 +269,10 @@ function facet_bot_blocker_boot() {
   if (facet_bot_blocker_bypass()) {
     return;
   }
+
+  $request_uri = isset($_SERVER['REQUEST_URI']) ? htmlspecialchars($_SERVER['REQUEST_URI']) : '';
+  $ua_string = isset($_SERVER['HTTP_USER_AGENT']) ? htmlspecialchars($_SERVER['HTTP_USER_AGENT']) : '';
+  $ip = check_plain(ip_address());
 
   // Retrieve config from cache or config system.
   $config = config('facet_bot_blocker.settings');
@@ -280,9 +325,10 @@ function facet_bot_blocker_boot() {
 
   // Check if the request is "over the limit" => blocked.
   $is_blocked = FALSE;
+  $over_the_limit = FALSE;
   $facets_exist = (isset($_GET['f']) && is_array($_GET['f'])) ?? FALSE;
   if (isset($_GET['f']) && is_array($_GET['f']) && count($_GET['f']) > $limit) {
-    $is_blocked = TRUE;
+    $over_the_limit = TRUE;
   }
 
   // If using FacetAPI Pretty Paths module, check the nested directories instead
@@ -299,7 +345,22 @@ function facet_bot_blocker_boot() {
       // We double the limit, because it takes 2 slashes to equal one
       // "f" parameter.
       if (count($matches[0]) > ($limit * 2)) {
-        $is_blocked = TRUE;
+        $over_the_limit = TRUE;
+      }
+    }
+  }
+
+  if ($over_the_limit) {
+    $is_blocked = TRUE;
+
+    $threshold_window = $config->get('flood_ip_window');
+    $threshold_limit = $config->get('flood_ip_limit');
+    if ($threshold_window) {
+      include_once BACKDROP_ROOT . '/core/includes/common.inc';
+      flood_register_event('facet_bot_blocker', $threshold_window);
+      if (flood_is_allowed('facet_bot_blocker', $threshold_limit, $threshold_window)) {
+        // If access is still allowed, then do not block (yet).
+        $is_blocked = FALSE;
       }
     }
   }
@@ -307,12 +368,6 @@ function facet_bot_blocker_boot() {
   // If blocked, build and set a response. Otherwise, increment "allowed"
   // counter if there's a facet param.
   if ($is_blocked) {
-    $status_code = $return_gone ? '410 Gone' : '403 Forbidden';
-
-    backdrop_add_http_header('Status', $status_code);
-    print $blocked_message;
-    exit();
-
     // Add some counters if using cache.
     if ($track_blocks) {
       // Increment blocked requests count.
@@ -320,12 +375,18 @@ function facet_bot_blocker_boot() {
 
       // Save last blocked info.
       cache_set('facet_bot_blocker.last_blocked_request', [
-        'ip' => ip_address(),
-        'path' => request_uri(),
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+        'ip' => $ip,
+        'path' => $request_uri,
+        'user_agent' => $ua_string,
       ]);
     }
-  } elseif (!empty($_GET['f']) && $track_blocks) {
+
+    $status_code = $return_gone ? '410 Gone' : '403 Forbidden';
+
+    backdrop_add_http_header('Status', $status_code);
+    print $blocked_message;
+    exit();
+  } elseif ($facets_exist && $track_blocks) {
     facet_bot_blocker_bump_counter('allowed_requests');
   }
 }
