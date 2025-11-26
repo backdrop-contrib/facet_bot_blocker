@@ -280,6 +280,7 @@ function facet_bot_blocker_boot() {
 
   // Check if the request is "over the limit" => blocked.
   $is_blocked = FALSE;
+  $facets_exist = (isset($_GET['f']) && is_array($_GET['f'])) ?? FALSE;
   if (isset($_GET['f']) && is_array($_GET['f']) && count($_GET['f']) > $limit) {
     $is_blocked = TRUE;
   }
@@ -288,9 +289,12 @@ function facet_bot_blocker_boot() {
   // of the facet parameters.
   $base_paths = $config->get('base_paths') ?? [''];
   foreach ($base_paths as $base_path) {
-    if (isset($_GET['q']) && str_contains($_GET['q'], $base_path)) {
+    if (isset($_GET['q']) && strpos(strtolower($_GET['q']), $base_path) !== FALSE) {
       $path_to_check = str_replace(rtrim($base_path, '/'), '', $_GET['q']);
       preg_match_all('/\//', $path_to_check, $matches);
+      if (count($matches[0]) > 0) {
+        $facets_exist = TRUE;
+      }
       // Count the number of matches.
       // We double the limit, because it takes 2 slashes to equal one
       // "f" parameter.
