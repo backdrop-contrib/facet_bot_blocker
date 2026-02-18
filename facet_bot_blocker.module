@@ -229,6 +229,12 @@ function facet_bot_blocker_settings($form, &$form_state) {
     '#type' => 'item',
     '#description' => t('Instead of blocking all facet path requests that exceed the facet parameter limit, allow these requests from the current IP until a threshold has been reached. By default this is disabled, which is to always block for the facet path.'),
   ];
+  $form['ip_limit_settings']['ip_range_track'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Track an IP range'),
+    '#default_value' => $config->get('ip_range_track') ?? FALSE,
+    '#description' => t('If enabled, an IP range will be used for the threshold tracking instead of the specific IP. For example, "10.2.*.*" instead of "10.2.1.0". This can help where bots are using a number of different IP addresses.'),
+  ];
 
   $form['actions']['#type'] = 'actions';
   $form['actions']['submit'] = [
@@ -257,6 +263,7 @@ function facet_bot_blocker_settings_submit($form, &$form_state) {
     ->set('limit', (int) ($form_state['values']['limit'] ?? 5))
     ->set('flood_ip_limit', (int) $form_state['values']['flood_ip_limit'])
     ->set('flood_ip_window', (int) $form_state['values']['flood_ip_window'])
+    ->set('ip_range_track', (int) $form_state['values']['ip_range_track'])
     ->save();
 
   backdrop_set_message(t('Facet Bot Blocker configuration saved.'));
@@ -357,8 +364,16 @@ function facet_bot_blocker_boot() {
     $threshold_limit = $config->get('flood_ip_limit');
     if ($threshold_window) {
       include_once BACKDROP_ROOT . '/core/includes/common.inc';
-      flood_register_event('facet_bot_blocker', $threshold_window);
-      if (flood_is_allowed('facet_bot_blocker', $threshold_limit, $threshold_window)) {
+      $identifier = $ip;
+      $ip_range_track = $config->get('ip_range_track') ?? TRUE;
+      if ($ip_range_track) {
+        // Track the first part of the IP. E.g. 10.12.*.*
+        $chunk = explode('.', $ip);
+        $identifier = $chunk[0] . '.' . $chunk[1] . '.*.*';
+      }
+
+      flood_register_event('facet_bot_blocker', $threshold_window, $identifier);
+      if (flood_is_allowed('facet_bot_blocker', $threshold_limit, $threshold_window, $identifier)) {
         // If access is still allowed, then do not block (yet).
         $is_blocked = FALSE;
       }
